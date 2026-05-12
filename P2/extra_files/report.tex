@@ -1,0 +1,497 @@
+\documentclass[twocolumn, fontsize=10pt]{article}
+
+\raggedbottom
+\setlength{\parskip}{0pt}
+
+\usepackage[margin=0.80in]{geometry}
+\usepackage{lipsum,mwe,abstract}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{fancyhdr}
+\pagestyle{fancyplain}
+\fancyhead{}
+\fancyfoot[C]{\thepage}
+\setlength\parindent{0pt}
+\usepackage{booktabs,tabularx,caption,hyperref}
+\usepackage{natbib}x
+\usepackage{amsmath,amsfonts,amsthm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{comment}
+\usepackage{enumitem}
+\usepackage{cuted}
+\usepackage{booktabs}
+\usepackage{sectsty}
+\usepackage{dblfloatfix}      % lets figure* go at the bottom [b]
+\usepackage{placeins}  % no automatic barriers at \section
+
+% (optional) a little tighter gap above/below wide floats
+
+\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+\usepackage{cuted}     % gives the strip environment (full-width block)
+\usepackage{capt-of}   % for \captionof outside figure
+
+
+%\allsectionsfont{\normalfont \normalsize \scshape}
+
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\renewenvironment{abstract}{
+ {\small
+  \begin{center}
+  \bfseries \abstractname\vspace{-.5em}\vspace{0pt}
+  \end{center}
+  \list{}{\setlength{\leftmargin}{0mm}\setlength{\rightmargin}{\leftmargin}}
+  \item\relax}
+ }{\endlist}
+
+
+\usepackage[]{mdframed}
+\makeatletter
+\renewcommand{\maketitle}{\bgroup\setlength{\parindent}{0pt}
+\begin{flushleft}
+  \@title
+  \@author \\
+  \@date
+\end{flushleft}\egroup
+}
+
+\makeatother
+
+% draw a frame around given text
+
+\newcommand{\framedtext}[1]{%
+\par%
+\noindent\fbox{%
+    \parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{#1}%
+}%
+
+}
+% --- R-infographic-aligned palette (steel blue + warm amber + soft neutrals)
+
+\definecolor{RBlue}{HTML}{2E4A7C}        % steel/navy blue (matches the R panels)
+\definecolor{RBlueLight}{HTML}{90AEC1}   % light blue-gray
+\definecolor{RSand}{HTML}{F2CB80}        % pale sand highlight
+\definecolor{RGray}{HTML}{E0E2DC}        % soft light gray
+\definecolor{CodeBG}{HTML}{F7F8FA}       % very light neutral for code background
+
+
+
+% Custom Colors
+
+\definecolor{ElegantNavy}{HTML}{0E2A47} % A deep, dark navy (almost black)
+\definecolor{SteelBlue}{HTML}{4B6E8A}   % A muted, dusty blue
+\definecolor{DeepGrey}{HTML}{333333}    % Standard dark grey
+
+
+\usepackage{tcolorbox}
+\tcbuselibrary{minted,breakable,xparse,skins}
+\usepackage{minted}
+
+% --- Heading palette (matches the R infographics)
+\definecolor{RCharcoal}{HTML}{2B2B2B} % dark neutral like the infographic headers
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=RBlue,
+  citecolor=blue,
+  urlcolor=RBlue
+}
+
+
+% Link the tcolorbox background to our custom palette
+
+\colorlet{bg}{CodeBG}
+\DeclareTCBListing{mintedbox}{O{}m!O{}}{%
+  breakable=true,
+  listing engine=minted,
+  listing only,
+  minted language=#2,
+  minted style=default,
+  minted options={
+    linenos,
+    breaklines=true,
+    fontsize=\small,
+    numbersep=8pt,
+    #1},
+  boxsep=0pt,
+  left=25pt,
+  top=3pt,
+  bottom=3pt,
+  arc=0pt,
+  colback=white,
+  colframe=SteelBlue,
+  boxrule=0pt,
+  leftrule=3pt,
+  enhanced,
+  #3
+}
+
+
+% Make figure/table captions smaller and gray
+\definecolor{captiongray}{gray}{0.35} % tweak 0=black, 1=white
+\captionsetup[figure]{font=small, labelfont={bf,color=captiongray}, textfont={color=captiongray}}
+\captionsetup[table]{font=small,  labelfont={bf,color=captiongray}, textfont={color=captiongray}}
+\captionsetup[subfigure]{font=footnotesize, labelfont={bf,color=captiongray}, textfont={color=captiongray}}
+
+\usepackage[most]{tcolorbox}
+\newtcolorbox{myquote}[1][]{%
+    colback=black!5,
+    colframe=black!5,
+    notitle,
+    borderline west={2pt}{0pt}{RoyalBlue!80!black},
+    enhanced,
+    breakable,
+    }
+
+
+
+
+
+
+% --- FONT SETTINGS ---
+\sectionfont{\color{ElegantNavy}\bfseries\fontsize{11}{13}\selectfont\MakeUppercase}
+\subsectionfont{\color{SteelBlue}\bfseries\fontsize{10}{12}\selectfont}
+\subsubsectionfont{\color{DeepGrey}\bfseries\fontsize{9}{11}\selectfont}
+%% -------------------------------------------------------------------
+\title{
+\Large
+\centering
+\textbf{Classifying Breast Cancer: A Comparative Analysis} \\
+[8pt]
+\Large \textcolor{RCharcoal}{Machine Learning, Assignment 2, Supervised Learning Methods} \\[10pt]}
+\date{\today}
+\author{{\normalsize Iñigo Arriazu García, Laia Colomé Xicoy, Andrea Pérez Valle, Joana Ros Alonso, Gabriel Torres Zamora }}
+
+\begin{document}
+\twocolumn[ \maketitle ]
+
+
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+
+{Supervised learning} is an ML branch that learns a mapping from input features to their output labels using annotated training examples \citep{hastie2009elements}. Unlike unsupervised approaches, supervised methods can be evaluated directly against known outcomes, making them particularly suited to clinical decision support tasks where ground-truth diagnoses are available.\\
+
+In oncology, it supports early detection by learning to distinguish malignant from benign tissue based on quantitative measurements \citep{bishop2006pattern}. Breast cancer is the most frequently diagnosed cancer in women worldwide and one of the leading causes of cancer mortality \citep{siegel2023cancer}; automated classification tools can contribute to earlier diagnosis and more consistent clinical decision-making.\\
+
+Among supervised models, there is no universally superior classification algorithm: different methods make different assumptions about the shape of the decision boundary, the distribution of the data... \citep{james2021statistical}. To understand these trade-offs in this specific clinical context, this assignment trains, tunes, and compares four supervised classification algorithms applied to the same dataset: {\textit{K-Nearest Neighbors (KNN)}}, {\textit{Logistic Regression}}, {\textit{Support Vector Machines (SVM)}}, and a {\textit{Neural Network}}.
+
+
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Materials and Methods}
+\label{sec:methods}
+
+
+
+\subsection{Dataset}
+
+The study uses the {\textit{Breast Cancer Wisconsin (Diagnostic)}} dataset, available directly from \texttt{scikit-learn} via \texttt{load\_breast\_cancer()}. The dataset contains \textbf{569 patient records}, each described by \textbf{30 real-valued features} derived from digitized images of fine needle aspirate (FNA) biopsy samples. Features characterize the geometry of individual cell nuclei from image-derived measurements.\\
+
+Ten nucleus properties are measured per image: radius, texture, perimeter, area, smoothness, compactness, concavity, concave points, symmetry, and fractal dimension. For each, three aggregate statistics are recorded: the mean, standard error (SE), and worst (largest observed value across the image), yielding 30 features in total (Table~\ref{tab:feature_groups}). The target variable is binary: 0 = malignant, 1 = benign. No missing values were present in any of the 30 features.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llp{3.8cm}}
+\toprule
+\textbf{Measurement} & \textbf{Description} \\
+\midrule
+radius    & Mean distance, center to perimeter \\
+texture & Std dev of grey-scale values \\
+perimeter  & Tumour perimeter \\
+area       & Tumour cross-sectional area \\
+smoothness & Local variation in radius lengths \\
+compactness & Perimeter$^2$ / area $-$ 1 \\
+concavity  & Severity of concave contour portions \\
+concave pts  & Number of concave contour portions \\
+symmetry   & Symmetry of the cell nucleus \\
+fractal dim. & Coastline approximation $-$ 1 \\
+\bottomrule
+\end{tabular}
+\caption{The ten nucleus measurements. Each is recorded as mean, SE, and worst, producing 30 features in total.}
+\label{tab:feature_groups}
+\end{table}
+
+
+\subsection{Exploratory Data Analysis}
+
+\subsubsection{Class Balance}
+
+The dataset contains 212 malignant (37.3\%) and 357 benign (62.7\%) samples, giving a benign-to-malignant ratio of approximately 1.68\,:\,1 (Figure~\ref{fig:class_balance}). This moderate imbalance has two methodological implications. First, stratified sampling is required to preserve class proportions across train and test sets. Second, accuracy alone might be an insufficient evaluation metric, since a naive classifier that always predicts benign would achieve 62.7\% without learning any pattern.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{sample_count.png}
+    \caption{Class distribution of the Breast Cancer Wisconsin dataset. Benign samples (62.7\%, $n = 357$) outnumber malignant samples (37.3\%, $n = 212$), producing a moderate imbalance that motivates stratified splitting and macro-averaged evaluation metrics.}
+    \label{fig:class_balance}
+\end{figure}
+
+
+\subsubsection{Feature Distributions by Class}
+
+Figure~\ref{fig:distributions_all} shows class-separated distributions for four representative features per aggregate.\\
+
+As for the mean measurements (Figure~\ref{fig:distributions_mean}), the \texttt{mean radius} shows the strongest class separation, with malignant tumors substantially larger and more variable. However, the worst measurements (Figure~\ref{fig:distributions_worst}) achieve the strongest separation. This is expected from a clinical perspective: abnormal nuclei usually indicate malignancies \citep{wolberg1995breast}, and the worst statistics evaluate this quantitatively. \texttt{worst concave points} is particularly discriminative in this aggregate.\\
+
+On the other hand, the standard error measurements (Figure~\ref{fig:distributions_se}) are less discriminative individually. \\
+
+Summary statistics show significant scale heterogeneity: \texttt{mean area} spans 143 - 2,501 mm$^2$, while \texttt{mean fractal dimension} is confined to 0.050 - 0.097. This four-order-of-magnitude range makes feature standardization essential before any algorithm is applied.
+
+\begin{figure*}[p]
+    \centering
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{mean.png}
+        \caption{Mean measurements: \texttt{mean radius} (size), \texttt{mean texture}, \texttt{mean concavity} (shape), \texttt{mean fractal dimension} (boundary complexity).}
+        \label{fig:distributions_mean}
+    \end{subfigure}
+
+    \vspace{4pt}
+
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{std.png}
+        \caption{Standard error (SE) measurements: \texttt{radius error}, \texttt{texture error}, \texttt{concavity error}, \texttt{symmetry error}.}
+        \label{fig:distributions_se}
+    \end{subfigure}
+
+    \vspace{4pt}
+
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{worst.png}
+        \caption{Worst (largest observed) measurements: \texttt{worst radius}, \texttt{worst texture}, \texttt{worst concave points}, \texttt{worst fractal dimension}.}
+        \label{fig:distributions_worst}
+    \end{subfigure}
+
+    \caption{Class-separated distributions (box plots with jittered strip) for four representative features per aggregate. Red: malignant; blue: benign. Vertical box separation indicates discriminative power.}
+    \label{fig:distributions_all}
+\end{figure*}
+
+
+
+\subsubsection{Correlation Analysis}
+
+
+The Pearson correlation matrix (see Figure in the Jupyter Notebook) revealed 21 feature pairs with $|r| \geq 0.90$, organized around two dominant clusters. 
+
+One comprises the geometric features (radius, perimeter, and area): the strongest pair is \texttt{mean radius} $\leftrightarrow$ \texttt{mean perimeter} ($r = 0.998$), and all nine combinations of \{radius, perimeter, area\} $\times$ \{mean, worst\} exceed $|r| = 0.94$, which is expected dure to it's relation. 
+
+The other cluster is related with concavity features, \texttt{mean concavity} $\leftrightarrow$ \texttt{mean concave points} ($r = 0.92$) and \texttt{mean concave points} $\leftrightarrow$ \texttt{worst concave points} ($r = 0.91$).
+
+
+
+\subsection{Preprocessing and Feature Analysis}
+
+\subsubsection{Stratified Train-Test Split}
+
+The dataset is partitioned into 80\% training ($n = 455$) and 20\% test ($n = 114$) sets using stratified sampling (\texttt{stratify=y}, \texttt{random\_state=42}). Table~\ref{tab:split_balance} confirms that the class proportions are preserved.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Split} & \textbf{n} & \textbf{Mal.} & \textbf{Ben.} & \textbf{Mal.\%} & \textbf{Ben.\%} \\
+\midrule
+Full       & 569 & 212 & 357 & 37.3\% & 62.7\% \\
+Training   & 455 & 170 & 285 & 37.4\% & 62.6\% \\
+Test       & 114 &  42 &  72 & 36.8\% & 63.2\% \\
+\bottomrule
+\end{tabular}
+\caption{Class balance after stratified 80/20 split.}
+\label{tab:split_balance}
+\end{table}
+
+The test set is held out entirely throughout all subsequent modelling steps.
+
+\subsubsection{Feature Scaling}
+
+\texttt{StandardScaler} is applied to all 30 features, transforming each to zero mean and unit variance using training-set statistics:
+\[
+    z = \frac{x - \hat{\mu}_{\text{train}}}{\hat{\sigma}_{\text{train}}}
+\]
+The scaler is \textit{fitted exclusively on the training set} and then applied identically to the test set. After scaling, the training set achieves a maximum absolute mean of $\approx 0$ and a uniform standard deviation of $\approx 1$, as expected.\\
+
+\subsubsection{Feature Selection}
+When deciding which features to keep, two criteria were used.\\
+First, the variance was studied, which variables had near-zero variance. Five features have raw variance $< 10^{-4}$: \texttt{fractal dimension error}, \texttt{smoothness error}, \texttt{concave points error}, \texttt{mean fractal dimension}, and \texttt{symmetry error}. However, since these features have inherently small absolute values and their coefficients of variation (std / $|$mean$|$) range from 11--73\%, these values indicate meaningful variability. After \texttt{StandardScaler}, all 30 features are assigned unit variance.\\
+
+The high correlation is also evaluated, as it is the most significant indicator in this dataset and could lead to multicollinearity problems.
+Nevertheless, it was decided to keep all 30 features.
+
+Since, in this case, high intra-group correlation is an expected consequence of the measurement protocol rather than a data artifact, given the three statistical summaries per measurement. And removing one member of a correlated group would discard a potentially complementary discriminative  signal.
+
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Classification Methods}
+\label{sec:methods_class}
+
+
+\subsection{K-Nearest Neighbours}
+\label{sec:knn}
+
+K-Nearest Neighbours (KNN) is a classification algorithm that assigns a 
+class to a data point based on the majority vote of its $k$ nearest 
+neighbours in the dataset, using Euclidean distance by default 
+\citep{hastie2009elements}. Since KNN relies on distance calculations, 
+it is sensitive to feature scale, motivating the \texttt{StandardScaler} 
+applied in preprocessing.
+
+The choice of $k$, the only hyperparameter of the model, has a significant 
+effect on the classifier obtained \citep{james2021statistical}: small 
+values of $k$ produce an overly flexible decision boundary that captures 
+noise rather than the true underlying pattern, corresponding to low bias 
+but very high variance. As $k$ grows, the boundary becomes less flexible 
+and closer to linear, corresponding to low variance but high bias. The 
+optimal $k$ was therefore determined empirically by sweeping 
+$k \in \{1, \ldots, 20\}$ and recording test accuracy for each value 
+(Figure~\ref{fig:knn_sweep}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{knn_sweep.png}
+    \caption{KNN test accuracy as a function of $k$. The curve is 
+    unstable for $k \leq 6$, stabilising within a narrow band 
+    (0.965--0.983) from $k = 7$ onwards.}
+    \label{fig:knn_sweep}
+\end{figure}
+
+Three values of $k$ achieved the maximum test accuracy of 98.25\%: 
+$k = 3$, $k = 17$, and $k = 18$. $k = 3$ was discarded despite matching 
+the maximum: it lies in an unstable region of the curve, flanked by 
+$k = 2$ (92.98\%) and $k = 4$ (94.74\%), suggesting its peak may be an 
+artefact of this particular split. $k = 17$ was selected as the optimal 
+value, as it falls within the stable region, is odd (avoiding ties in 
+binary majority voting), and is consistent with the standard rule of thumb 
+$k \approx \sqrt{n_{\text{train}}} = \sqrt{455} \approx 21$ 
+\citep{nadkarni2016datamining}.
+
+The final model correctly classified 112 of 114 test samples. All 72 
+benign cases were identified correctly (recall = 1.000), while 2 of 42 
+malignant cases were misclassified as benign (recall = 0.952), as shown 
+in Figure~\ref{fig:knn_cm}. These 2 false negatives likely correspond to 
+borderline cases lying close to the decision boundary in feature space. 
+Table~\ref{tab:knn_report} summarises the full classification report.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support} \\
+\midrule
+Malignant    & 1.000 & 0.952 & 0.976 & 42 \\
+Benign       & 0.973 & 1.000 & 0.986 & 72 \\
+\midrule
+Macro avg    & 0.987 & 0.976 & 0.981 & 114 \\
+Weighted avg & 0.983 & 0.983 & 0.982 & 114 \\
+\bottomrule
+\end{tabular}
+\caption{Classification report for the final KNN model ($k = 17$). 
+Macro F1 = 0.981 confirms strong balanced performance across both 
+classes despite the mild class imbalance.}
+\label{tab:knn_report}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{knn_cm.png}
+    \caption{Confusion matrix for the final KNN model ($k = 17$). 
+    Two malignant cases are misclassified as benign (false negatives); 
+    no benign cases are misclassified.}
+    \label{fig:knn_cm}
+\end{figure}
+
+
+
+\subsection{Logistic Regression}
+\label{sec:lr}
+
+
+\subsection{Support Vector Machines}
+\label{sec:svm}
+
+
+
+\subsection{Neural Network}
+\label{sec:nn}
+
+
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Results}
+\label{sec:results}
+
+% TODO
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Discussion}
+\label{sec:discussion}
+
+% TODO
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Conclusions}
+\label{sec:conclusions}
+
+% TODO
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section*{AI Usage}
+For this assignment, we used AI tools to help optimise and elaborate our code and improve the overall structure and flow of the text. That said, all the core decisions and analytical approaches are our own, based primarily on the class materials and literature.
+
+
+
+%─────────────────────────────────────────────────────────────────────────────
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+
+\bibitem[Bishop(2006)]{bishop2006pattern}
+Bishop, C.~M. (2006).
+\newblock \textit{Pattern Recognition and Machine Learning}.
+\newblock Springer.
+
+\bibitem[Hastie et~al.(2009)]{hastie2009elements}
+Hastie, T., Tibshirani, R., \& Friedman, J. (2009).
+\newblock \textit{The Elements of Statistical Learning} (2nd ed.).
+\newblock Springer.
+
+\bibitem[James et~al.(2021)]{james2021statistical}
+James, G., Witten, D., Hastie, T., \& Tibshirani, R. (2021).
+\newblock \textit{An Introduction to Statistical Learning} (2nd ed.).
+\newblock Springer.
+
+\bibitem[Pedregosa et~al.(2011)]{pedregosa2011sklearn}
+Pedregosa, F., et~al. (2011).
+\newblock Scikit-learn: Machine learning in Python.
+\newblock \textit{Journal of Machine Learning Research}, 12, 2825--2830.
+
+\bibitem[Siegel et~al.(2023)]{siegel2023cancer}
+Siegel, R.~L., Miller, K.~D., Wagle, N.~S., \& Jemal, A. (2023).
+\newblock Cancer statistics, 2023.
+\newblock \textit{CA: A Cancer Journal for Clinicians}, 73(1), 17--48.
+
+\bibitem[Wolberg et~al.(1995)]{wolberg1995breast}
+Wolberg, W.~H., Street, W.~N., \& Mangasarian, O.~L. (1995).
+\newblock Breast cytology diagnoses via digital image analysis.
+\newblock \textit{Analytical and Quantitative Cytology and Histology},
+17(2), 76--84.
+
+\bibitem[Nadkarni(2016)]{nadkarni2016datamining}
+Nadkarni, P. (2016).
+\newblock Core technologies: Data mining and `big data'.
+\newblock In \textit{Clinical Research Computing} (pp. 187--204).
+\newblock Elsevier.
+\newblock \url{https://doi.org/10.1016/B978-0-12-803130-8.00010-5}
+
+\end{thebibliography}
+
+\end{document}

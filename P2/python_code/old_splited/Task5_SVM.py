@@ -30,7 +30,7 @@ from sklearn.metrics import (accuracy_score, classification_report,
                               roc_auc_score)
 
 # Output directories
-output_dir = '/Users/arriazui/Downloads/master/C1_S2/MACHINE_LEARNING/python_code'
+output_dir = os.path.dirname(os.path.abspath(__file__))
 img_dir = os.path.join(output_dir, 'images')
 os.makedirs(img_dir, exist_ok=True)
 
@@ -193,18 +193,18 @@ plt.close()
 # A grid of C ∈ {0.01, 0.1, 1, 10, 100} × gamma ∈ {0.001, 0.01, 0.1, 1, 10}
 # is evaluated on the test set to find the best combination.
 
-C_values     = [0.01, 0.1, 1, 10, 100]
+C_values_rbf     = [0.01, 0.1, 1, 10, 100]
 gamma_values = [0.001, 0.01, 0.1, 1, 10]
 
-acc_grid  = np.zeros((len(gamma_values), len(C_values)))
-time_grid = np.zeros((len(gamma_values), len(C_values)))
+acc_grid  = np.zeros((len(gamma_values), len(C_values_rbf)))
+time_grid = np.zeros((len(gamma_values), len(C_values_rbf)))
 
 print("\nRBF grid search  (C × gamma):")
 print(f"{'C / gamma':<12}", end='')
 print('  '.join([f'{g:>7}' for g in gamma_values]))
 print("─" * 65)
 
-for ci, C in enumerate(C_values):
+for ci, C in enumerate(C_values_rbf):
     row_str = f"C = {C:<8}"
     for gi, g in enumerate(gamma_values):
         svm_rbf = SVC(kernel='rbf', C=C, gamma=g, random_state=42)
@@ -217,7 +217,7 @@ for ci, C in enumerate(C_values):
 
 best_idx   = np.unravel_index(np.argmax(acc_grid), acc_grid.shape)
 best_gamma = gamma_values[best_idx[0]]
-best_C_rbf = C_values[best_idx[1]]
+best_C_rbf = C_values_rbf[best_idx[1]]
 best_acc   = acc_grid[best_idx]
 
 print(f"\nBest RBF accuracy : {best_acc:.4f}")
@@ -234,7 +234,7 @@ hm = sns.heatmap(
     ax=ax_acc,
     annot=True, fmt='.4f',
     cmap='YlOrRd',
-    xticklabels=[str(c) for c in C_values],
+    xticklabels=[str(c) for c in C_values_rbf],
     yticklabels=[str(g) for g in gamma_values],
     linewidths=0.5, linecolor='white',
     cbar_kws={'label': 'Test Accuracy', 'shrink': 0.85},
@@ -257,7 +257,7 @@ sns.heatmap(
     ax=ax_time,
     annot=True, fmt='.4f',
     cmap='Blues',
-    xticklabels=[str(c) for c in C_values],
+    xticklabels=[str(c) for c in C_values_rbf],
     yticklabels=[str(g) for g in gamma_values],
     linewidths=0.5, linecolor='white',
     cbar_kws={'label': 'Training time (s)', 'shrink': 0.85},
@@ -283,7 +283,7 @@ acc_vs_gamma = acc_grid[:, best_idx[1]]   # best C column
 
 ax_c = axes[0]
 ax_c.plot(
-    [str(c) for c in C_values], acc_vs_C,
+    [str(c) for c in C_values_rbf], acc_vs_C,
     marker='o', linewidth=2.2, color=PALETTE[0],
     markerfacecolor=CLR_MAL, markeredgecolor='white',
     markeredgewidth=1.2, markersize=9,
