@@ -125,3 +125,33 @@ output_dir = os.path.dirname(os.path.abspath(__file__))
 ```
 
 Want me to fix that path?
+
+
+
+
+
+
+
+## END FILE: 
+si encontrabamos alguna limitacion dentro de los modelos y como solucionarlo ( posibilidad de quitar alguna redundancia de las variables )
+* considering computing cost 
+* and interpretability 
+
+
+
+knn y logistic 
+tener la matriz de confusion --> tener todos los casos enfermos 
+knn --> matiz de confusion diferente --> motivo discriminante (errores que no interesan )
+
+
+re
+
+
+dividir resultados --> 
+* LAIA 
+* 
+
+LIMITACIONES : 
+CONCLUSIONES:
+
+s
