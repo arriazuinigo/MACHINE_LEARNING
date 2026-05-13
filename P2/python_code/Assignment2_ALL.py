@@ -649,6 +649,9 @@ print("TASK 5 — Support Vector Machine (SVM)")
 print("=" * 60)
 
 # ── 5.1 Kernel Comparison: Linear, RBF, Polynomial ───────────────────────────
+print("\n5.1 Kernel Comparison using 5-fold CV on training set")
+print("Metric: balanced_accuracy (consistent with clinical importance)")
+
 kernel_configs = [
     {'kernel': 'linear', 'label': 'Linear',     'C': 1, 'extra': {}},
     {'kernel': 'rbf',    'label': 'RBF',        'C': 1, 'extra': {'gamma': 'scale'}},
@@ -656,8 +659,8 @@ kernel_configs = [
 ]
 kernel_results = []
 
-print(f"\n{'Kernel':<14} {'Accuracy':>10} {'AUC':>8} {'Train time (s)':>16}")
-print("─" * 52)
+print(f"\n{'Kernel':<14} {'CV Bal. Acc':>13} {'CV AUC':>8} {'CV Std':>8} {'Train time (s)':>16}")
+print("─" * 63)
 
 for cfg in kernel_configs:
     svm = SVC(kernel=cfg['kernel'], C=cfg['C'],
@@ -666,43 +669,48 @@ for cfg in kernel_configs:
     svm.fit(X_train_scaled, y_train)
     train_time = time.perf_counter() - t0
 
-    y_pred  = svm.predict(X_test_scaled)
-    y_proba = svm.predict_proba(X_test_scaled)[:, 1]
-    acc     = accuracy_score(y_test, y_pred)
-    auc     = roc_auc_score(y_test, y_proba)
+    # Use cross_val_score for balanced accuracy on training set
+    from sklearn.metrics import balanced_accuracy_score
+    from sklearn.model_selection import cross_val_score
+    
+    cv_bal_acc = cross_val_score(svm, X_train_scaled, y_train, 
+                                  cv=5, scoring='balanced_accuracy')
+    cv_auc = cross_val_score(svm, X_train_scaled, y_train, 
+                              cv=5, scoring='roc_auc')
 
     kernel_results.append({
         'Kernel'        : cfg['label'],
-        'Accuracy'      : acc,
-        'AUC'           : auc,
+        'CV Bal. Acc'   : round(cv_bal_acc.mean(), 4),
+        'CV AUC'        : round(cv_auc.mean(), 4),
+        'CV Std'        : round(cv_auc.std(), 4),
         'Train time (s)': round(train_time, 4),
         '_model'        : svm,
-        '_y_pred'       : y_pred,
-        '_y_proba'      : y_proba,
     })
-    print(f"{cfg['label']:<14} {acc:>10.4f} {auc:>8.4f} {train_time:>14.4f}s")
+    print(f"{cfg['label']:<14} {cv_bal_acc.mean():>13.4f} {cv_auc.mean():>8.4f} "
+          f"{cv_auc.std():>8.4f} {train_time:>14.4f}s")
 
-display_cols = ['Kernel', 'Accuracy', 'AUC', 'Train time (s)']
-kernel_df    = pd.DataFrame(kernel_results)[display_cols]
-print("\nKernel comparison summary:")
+svm_display_cols = ['Kernel', 'CV Bal. Acc', 'CV AUC', 'CV Std', 'Train time (s)']
+kernel_df = pd.DataFrame(kernel_results)[svm_display_cols]
+print("\nKernel comparison summary (5-fold CV balanced accuracy on training set):")
 print(kernel_df.to_string(index=False))
 
 # Figure 14: kernel comparison bar chart
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 kernels    = kernel_df['Kernel'].tolist()
-accuracies = kernel_df['Accuracy'].tolist()
-aucs       = kernel_df['AUC'].tolist()
+bal_accs   = kernel_df['CV Bal. Acc'].tolist()
+aucs       = kernel_df['CV AUC'].tolist()
 bar_colors = PALETTE[:len(kernels)]
 
 ax1 = axes[0]
-bars = ax1.bar(kernels, accuracies, color=bar_colors, width=0.4,
+bars = ax1.bar(kernels, bal_accs, color=bar_colors, width=0.4,
                edgecolor='white', linewidth=1.8, alpha=0.90)
-for bar, val in zip(bars, accuracies):
+for bar, val in zip(bars, bal_accs):
     ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.002,
              f'{val:.4f}', ha='center', va='bottom', fontsize=11, fontweight='bold')
-ax1.set_ylim(min(accuracies) - 0.02, 1.01)
-ax1.set_ylabel('Test Accuracy', fontsize=11)
-ax1.set_title('SVM Kernel Comparison: Accuracy', fontsize=12, fontweight='bold')
+ax1.set_ylim(min(bal_accs) - 0.02, 1.01)
+ax1.set_ylabel('5-Fold CV Balanced Accuracy', fontsize=11)
+ax1.set_title('SVM Kernel Comparison: CV Balanced Accuracy', fontsize=12, fontweight='bold')
+ax1.tick_params(labelsize=10)
 ax1.set_facecolor('#fafafa')
 
 ax2 = axes[1]
@@ -712,72 +720,66 @@ for bar, val in zip(bars2, aucs):
     ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.001,
              f'{val:.4f}', ha='center', va='bottom', fontsize=11, fontweight='bold')
 ax2.set_ylim(min(aucs) - 0.02, 1.01)
-ax2.set_ylabel('ROC AUC', fontsize=11)
-ax2.set_title('SVM Kernel Comparison: AUC', fontsize=12, fontweight='bold')
+ax2.set_ylabel('5-Fold CV AUC', fontsize=11)
+ax2.set_title('SVM Kernel Comparison: CV AUC', fontsize=12, fontweight='bold')
+ax2.tick_params(labelsize=10)
 ax2.set_facecolor('#fafafa')
 
-fig.suptitle('SVM Kernel Comparison (default C=1)', fontsize=14, fontweight='bold', y=1.02)
+fig.suptitle('SVM Kernel Comparison — 5-Fold CV Balanced Accuracy on Training Set (default C=1)',
+             fontsize=13, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig(os.path.join(IMG_DIR, 'task5_01_kernel_comparison.png'), dpi=300, bbox_inches='tight')
 plt.close()
 
 # ── 5.2 RBF Kernel: C × Gamma Grid Search (5-fold CV on training set) ────────
+print("\n5.2 RBF Kernel Hyperparameter Tuning")
+print("Grid search using 5-fold CV balanced_accuracy on training set")
+
 C_values_rbf = [0.01, 0.1, 1, 10, 100]
-gamma_values  = [0.001, 0.01, 0.1, 1, 10]
+gamma_values = [0.001, 0.01, 0.1, 1, 10]
 
-param_grid = {'C': C_values_rbf, 'gamma': gamma_values}
-grid_cv = GridSearchCV(
-    SVC(kernel='rbf', random_state=42),
-    param_grid,
-    cv=5,
-    scoring='accuracy',
-    n_jobs=-1,
-    return_train_score=False,
-)
+cv_grid   = np.zeros((len(gamma_values), len(C_values_rbf)))
+time_grid = np.zeros((len(gamma_values), len(C_values_rbf)))
 
-t0 = time.perf_counter()
-grid_cv.fit(X_train_scaled, y_train)
-search_time = time.perf_counter() - t0
-
-# Reshape results: GridSearchCV iterates C outer, gamma inner
-# → acc_grid[gi, ci] = CV accuracy for gamma_values[gi], C_values_rbf[ci]
-scores_1d = grid_cv.cv_results_['mean_test_score']
-times_1d  = grid_cv.cv_results_['mean_fit_time']
-acc_grid  = scores_1d.reshape(len(C_values_rbf), len(gamma_values)).T
-time_grid = times_1d.reshape(len(C_values_rbf), len(gamma_values)).T
-
-best_idx   = np.unravel_index(np.argmax(acc_grid), acc_grid.shape)
-best_gamma = gamma_values[best_idx[0]]
-best_C_rbf = C_values_rbf[best_idx[1]]
-best_acc   = acc_grid[best_idx]
-
-print(f"\n5-fold CV grid search completed in {search_time:.4f} s  (training set only)")
-print(f"\nCV accuracy grid  (rows = gamma, cols = C):")
+print("\nRBF CV grid search  (C × gamma) — scoring: balanced_accuracy")
 print(f"{'C / gamma':<12}", end='')
 print('  '.join([f'{g:>7}' for g in gamma_values]))
 print("─" * 65)
+
 for ci, C in enumerate(C_values_rbf):
     row_str = f"C = {C:<8}"
-    for gi in range(len(gamma_values)):
-        row_str += f"  {acc_grid[gi, ci]:>7.4f}"
+    for gi, g in enumerate(gamma_values):
+        svm_rbf = SVC(kernel='rbf', C=C, gamma=g, random_state=42)
+        t0 = time.perf_counter()
+        svm_rbf.fit(X_train_scaled, y_train)
+        time_grid[gi, ci] = time.perf_counter() - t0
+        cv_grid[gi, ci] = cross_val_score(
+            svm_rbf, X_train_scaled, y_train, cv=5, scoring='balanced_accuracy'
+        ).mean()
+        row_str += f"  {cv_grid[gi, ci]:>7.4f}"
     print(row_str)
 
-print(f"\nBest RBF CV accuracy : {best_acc:.4f}")
-print(f"Best C               : {best_C_rbf}")
-print(f"Best gamma           : {best_gamma}")
+best_idx   = np.unravel_index(np.argmax(cv_grid), cv_grid.shape)
+best_gamma = gamma_values[best_idx[0]]
+best_C_rbf = C_values_rbf[best_idx[1]]
+best_cv    = cv_grid[best_idx]
+
+print(f"\nBest CV balanced accuracy : {best_cv:.4f}")
+print(f"Best C                    : {best_C_rbf}")
+print(f"Best gamma                : {best_gamma}")
 
 # Figure 15: grid search heatmaps
 fig, axes = plt.subplots(1, 2, figsize=(18, 6))
 
 ax_acc = axes[0]
 sns.heatmap(
-    acc_grid, ax=ax_acc,
+    cv_grid, ax=ax_acc,
     annot=True, fmt='.4f', cmap='YlOrRd',
     xticklabels=[str(c) for c in C_values_rbf],
     yticklabels=[str(g) for g in gamma_values],
     linewidths=0.5, linecolor='white',
-    cbar_kws={'label': 'CV Accuracy', 'shrink': 0.85},
-    annot_kws={'size': 9, 'weight': 'bold'},
+    cbar_kws={'label': '5-Fold CV Balanced Accuracy', 'shrink': 0.85},
+    annot_kws={'size': 10, 'weight': 'bold'},
 )
 ax_acc.add_patch(plt.Rectangle(
     (best_idx[1], best_idx[0]), 1, 1,
@@ -785,8 +787,9 @@ ax_acc.add_patch(plt.Rectangle(
 ))
 ax_acc.set_xlabel('C (regularisation)', fontsize=11)
 ax_acc.set_ylabel('Gamma (kernel bandwidth)', fontsize=11)
-ax_acc.set_title('RBF SVM: CV Accuracy Grid (5-fold)\n(cyan border = best combination)',
+ax_acc.set_title('RBF SVM: 5-Fold CV Balanced Accuracy Grid\n(cyan border = best combination)',
                  fontsize=12, fontweight='bold')
+ax_acc.tick_params(labelsize=10)
 
 ax_time = axes[1]
 sns.heatmap(
@@ -795,66 +798,72 @@ sns.heatmap(
     xticklabels=[str(c) for c in C_values_rbf],
     yticklabels=[str(g) for g in gamma_values],
     linewidths=0.5, linecolor='white',
-    cbar_kws={'label': 'Mean CV Fit Time per Fold (s)', 'shrink': 0.85},
-    annot_kws={'size': 9},
+    cbar_kws={'label': 'Training time (s)', 'shrink': 0.85},
+    annot_kws={'size': 10},
 )
 ax_time.set_xlabel('C (regularisation)', fontsize=11)
 ax_time.set_ylabel('Gamma (kernel bandwidth)', fontsize=11)
-ax_time.set_title('RBF SVM: Mean CV Fit Time per Fold (s)', fontsize=12, fontweight='bold')
+ax_time.set_title('RBF SVM: Training Time Grid (seconds)', fontsize=12, fontweight='bold')
+ax_time.tick_params(labelsize=10)
 
-fig.suptitle('RBF Kernel Hyperparameter Search: C × Gamma  (5-fold CV on training set)',
-             fontsize=14, fontweight='bold', y=1.02)
+fig.suptitle('RBF Kernel Hyperparameter Search: C × Gamma — 5-Fold CV Balanced Accuracy',
+             fontsize=13, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig(os.path.join(IMG_DIR, 'task5_02_rbf_grid_search.png'), dpi=300, bbox_inches='tight')
 plt.close()
 
-# Figure 16: effect of C and gamma on accuracy
+# Figure 16: effect of C and gamma on balanced accuracy
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-acc_vs_C     = acc_grid[best_idx[0], :]
-acc_vs_gamma = acc_grid[:, best_idx[1]]
+bal_acc_vs_C     = cv_grid[best_idx[0], :]
+bal_acc_vs_gamma = cv_grid[:, best_idx[1]]
 
 ax_c = axes[0]
-ax_c.plot([str(c) for c in C_values_rbf], acc_vs_C,
+ax_c.plot([str(c) for c in C_values_rbf], bal_acc_vs_C,
           marker='o', linewidth=2.2, color=PALETTE[0],
           markerfacecolor=CLR_MAL, markeredgecolor='white',
           markeredgewidth=1.2, markersize=9)
 ax_c.set_xlabel(f'C  (gamma fixed at {best_gamma})', fontsize=11)
-ax_c.set_ylabel('CV Accuracy', fontsize=11)
-ax_c.set_title('RBF SVM: CV Accuracy vs C', fontsize=12, fontweight='bold')
+ax_c.set_ylabel('5-Fold CV Balanced Accuracy', fontsize=11)
+ax_c.set_title('RBF SVM: CV Balanced Accuracy vs C', fontsize=12, fontweight='bold')
+ax_c.tick_params(labelsize=10)
 ax_c.set_facecolor('#fafafa')
-ax_c.set_ylim(min(acc_vs_C) - 0.02, max(acc_vs_C) + 0.015)
+ax_c.set_ylim(min(bal_acc_vs_C) - 0.02, max(bal_acc_vs_C) + 0.015)
 ax_c.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
 
 ax_g = axes[1]
-ax_g.plot([str(g) for g in gamma_values], acc_vs_gamma,
+ax_g.plot([str(g) for g in gamma_values], bal_acc_vs_gamma,
           marker='s', linewidth=2.2, color=PALETTE[2],
           markerfacecolor=PALETTE[1], markeredgecolor='white',
           markeredgewidth=1.2, markersize=9)
 ax_g.set_xlabel(f'Gamma  (C fixed at {best_C_rbf})', fontsize=11)
-ax_g.set_ylabel('CV Accuracy', fontsize=11)
-ax_g.set_title('RBF SVM: CV Accuracy vs Gamma', fontsize=12, fontweight='bold')
+ax_g.set_ylabel('5-Fold CV Balanced Accuracy', fontsize=11)
+ax_g.set_title('RBF SVM: CV Balanced Accuracy vs Gamma', fontsize=12, fontweight='bold')
+ax_g.tick_params(labelsize=10)
 ax_g.set_facecolor('#fafafa')
-ax_g.set_ylim(min(acc_vs_gamma) - 0.05, max(acc_vs_gamma) + 0.015)
+ax_g.set_ylim(min(bal_acc_vs_gamma) - 0.05, max(bal_acc_vs_gamma) + 0.015)
 ax_g.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
 
-fig.suptitle('RBF Kernel: Effect of C and Gamma on CV Accuracy  (5-fold CV)',
-             fontsize=14, fontweight='bold', y=1.02)
+fig.suptitle('RBF Kernel: Effect of C and Gamma on 5-Fold CV Balanced Accuracy',
+             fontsize=13, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig(os.path.join(IMG_DIR, 'task5_03_rbf_C_gamma_effect.png'), dpi=300, bbox_inches='tight')
 plt.close()
 
 # ── 5.3 Final SVM Model ───────────────────────────────────────────────────────
+print("\n5.3 Final SVM Model Evaluation")
+from sklearn.metrics import balanced_accuracy_score
+
 final_svm = SVC(kernel='rbf', C=best_C_rbf, gamma=best_gamma,
                 random_state=42, probability=True)
 t0 = time.perf_counter()
 final_svm.fit(X_train_scaled, y_train)
-final_train_time = time.perf_counter() - t0
+svm_train_time = time.perf_counter() - t0
 
 y_pred_svm  = final_svm.predict(X_test_scaled)
 y_proba_svm = final_svm.predict_proba(X_test_scaled)[:, 1]
 
 print(f"\nFinal SVM model — kernel=RBF, C={best_C_rbf}, gamma={best_gamma}")
-print(f"Training time    : {final_train_time:.4f} s")
+print(f"Training time    : {svm_train_time:.4f} s")
 print("\nClassification report:")
 print(classification_report(y_test, y_pred_svm,
                              target_names=['Malignant', 'Benign'], digits=4))
@@ -862,15 +871,20 @@ print(classification_report(y_test, y_pred_svm,
 cm_svm = confusion_matrix(y_test, y_pred_svm)
 print("Confusion matrix:")
 print(cm_svm)
-print(f"\nFinal test accuracy : {accuracy_score(y_test, y_pred_svm):.4f}")
-print(f"Final AUC           : {roc_auc_score(y_test, y_proba_svm):.4f}")
+print(f"\nFinal test accuracy          : {accuracy_score(y_test, y_pred_svm):.4f}")
+print(f"Final test balanced accuracy : {balanced_accuracy_score(y_test, y_pred_svm):.4f}")
+print(f"Final AUC                    : {roc_auc_score(y_test, y_proba_svm):.4f}")
+print("\nNote: hyperparameters were selected using balanced_accuracy on 5-fold CV of the")
+print("training set only. The test set was not used for model selection.")
 
 # Figure 17: SVM confusion matrix
 fig, ax = plt.subplots()
 ax.grid(False)
-ConfusionMatrixDisplay(confusion_matrix=cm_svm,
-                       display_labels=['Malignant', 'Benign']
-                       ).plot(cmap='Blues', values_format='d', ax=ax)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm_svm,
+                              display_labels=['Malignant', 'Benign']
+                              ).plot(cmap='Oranges', values_format='d', ax=ax)
+for text in disp.ax_.texts:
+    text.set_fontsize(16)
 plt.title(
     f'SVM Confusion Matrix\n(RBF kernel, C={best_C_rbf}, gamma={best_gamma})',
     fontsize=13, fontweight='bold'
@@ -880,17 +894,19 @@ plt.savefig(os.path.join(IMG_DIR, 'task5_04_svm_confusion_matrix.png'), dpi=300,
 plt.close()
 
 # ── 5.4 Full Kernel Summary Table ─────────────────────────────────────────────
+print("\n5.4 Full Kernel Summary Table")
 tuned_rbf_row = {
     'Kernel'        : f'RBF (tuned C={best_C_rbf}, γ={best_gamma})',
-    'Accuracy'      : accuracy_score(y_test, y_pred_svm),
-    'AUC'           : roc_auc_score(y_test, y_proba_svm),
-    'Train time (s)': round(final_train_time, 4),
+    'CV Bal. Acc'   : round(best_cv, 4),
+    'CV AUC'        : None,
+    'CV Std'        : None,
+    'Train time (s)': round(svm_train_time, 4),
 }
-summary_rows = pd.DataFrame(kernel_results)[display_cols].copy()
-summary_rows = pd.concat([summary_rows, pd.DataFrame([tuned_rbf_row])], ignore_index=True)
+svm_summary = pd.DataFrame(kernel_results)[svm_display_cols].copy()
+svm_summary = pd.concat([svm_summary, pd.DataFrame([tuned_rbf_row])], ignore_index=True)
 
-print("\nFull SVM summary (including tuned RBF):")
-print(summary_rows.to_string(index=False))
+print("\nFull SVM summary (including tuned RBF — all metrics on training CV):")
+print(svm_summary.to_string(index=False))
 
 # =============================================================================
 print(f"\n{'=' * 60}")
