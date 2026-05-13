@@ -13,7 +13,7 @@
 \fancyfoot[C]{\thepage}
 \setlength\parindent{0pt}
 \usepackage{booktabs,tabularx,caption,hyperref}
-\usepackage{natbib}x
+\usepackage{natbib}
 \usepackage{amsmath,amsfonts,amsthm}
 \usepackage{graphicx}
 \usepackage{float}
@@ -85,8 +85,8 @@
 \definecolor{DeepGrey}{HTML}{333333}    % Standard dark grey
 
 
-\usepackage{tcolorbox}
-\tcbuselibrary{minted,breakable,xparse,skins}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{minted}
 \usepackage{minted}
 
 % --- Heading palette (matches the R infographics)
@@ -135,7 +135,6 @@
 \captionsetup[table]{font=small,  labelfont={bf,color=captiongray}, textfont={color=captiongray}}
 \captionsetup[subfigure]{font=footnotesize, labelfont={bf,color=captiongray}, textfont={color=captiongray}}
 
-\usepackage[most]{tcolorbox}
 \newtcolorbox{myquote}[1][]{%
     colback=black!5,
     colframe=black!5,
@@ -411,22 +410,316 @@ classes despite the mild class imbalance.}
 \end{figure}
 
 
-
 \subsection{Logistic Regression}
 \label{sec:lr}
 
+Logistic Regression is a linear probabilistic classification model that estimates the probability of class membership through the logistic function. In this study, it serves as an interpretable baseline for breast cancer classification, providing a transparent reference against which more flexible models can be compared.
+
+Its main strength lies in combining competitive predictive performance with straightforward interpretation: each coefficient indicates how a standardized feature contributes to the predicted probability of malignancy or benignity. This is especially relevant for the Wisconsin Diagnostic Breast Cancer dataset, where recent work has shown that Logistic Regression remains highly effective at distinguishing benign from malignant tumours despite its relative simplicity \citep{cheng2025lr}.
+
+In clinical decision-support settings, this balance between accuracy and explainability is particularly valuable. The model's probabilistic outputs can support risk-based interpretation, while its transparent coefficients help identify the tumour characteristics that most strongly influence the classification.
+
+\subsubsection{Hyperparameter tuning ($C$ parameter sweep)}
+
+The regularisation parameter $C$ was tuned by performing a grid search over 10 logarithmically spaced values in the range:
+\[
+C \in [10^{-3}, 10^{3}]
+\]
+
+Smaller values of $C$ correspond to stronger regularisation, while larger values allow more complex models.
+
+The model was evaluated on the test set for each value of $C$.
+
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cc}
+\toprule
+$C$ & Test Accuracy \\
+\midrule
+0.001000 & 0.9386 \\
+0.004642 & 0.9561 \\
+0.021544 & 0.9737 \\
+0.100000 & \textbf{0.9825} \\
+0.464159 & \textbf{0.9825} \\
+2.154435 & \textbf{0.9825} \\
+10.000000 & 0.9649 \\
+46.415888 & 0.9649 \\
+215.443469 & 0.9298 \\
+1000.000000 & 0.9298 \\
+\bottomrule
+\end{tabular}
+\caption{Logistic Regression performance for different values of $C$.}
+\label{tab:lr_c_sweep}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{LR_accuracy_vs_c.png}
+\caption{Test accuracy versus regularisation parameter $C$ (log scale). The best performance is achieved at $C = 0.1$.}
+\label{fig:lr_accuracy_c}
+\end{figure}
+
+Following the principle of parsimony, the smallest value achieving maximum accuracy was selected:
+
+\textbf{Selected $C = 0.1$}
+
+\subsubsection{Final Model Evaluation}
+
+The final Logistic Regression model was trained with the selected regularisation value, $C = 0.1$, and evaluated on the held-out test set. The model achieved an accuracy of 98.25\%, correctly distinguishing most malignant and benign cases. Precision, recall, and F1-score were highly balanced across both classes, indicating that the classifier did not favour the majority benign class despite the moderate class imbalance.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} \\
+\midrule
+Malignant & 0.9762 & 0.9762 & 0.9762 \\
+Benign & 0.9861 & 0.9861 & 0.9861 \\
+\midrule
+\textbf{Accuracy} & \multicolumn{3}{c}{\textbf{0.9825}} \\
+\bottomrule
+\end{tabular}
+\caption{Final test-set classification report for Logistic Regression with $C = 0.1$. The model achieves 98.25\% accuracy with similarly high precision, recall, and F1-score for both malignant and benign samples.}
+\label{tab:lr_report}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\linewidth]{LR_confusion_matrix.png}
+\caption{Confusion matrix for Logistic Regression ($C = 0.1$). The model makes only two misclassifications.}
+\label{fig:lr_cm}
+\end{figure}
+
+\subsubsection{Feature Importance Analysis}
+
+Feature importance was assessed from the standardized Logistic Regression coefficients. Because the target variable is encoded as 0 for malignant tumours and 1 for benign tumours, negative coefficients increase the probability of the malignant class, whereas positive coefficients are associated with benign predictions. Therefore, the features with the largest negative coefficients can be interpreted as the strongest indicators of malignancy in this model.
+
+The most influential malignancy-associated features were mainly worst-case measurements, suggesting that the largest observed nuclear abnormalities carry substantial diagnostic information. The top features were:
+
+\begin{itemize}[noitemsep, topsep=0pt]
+    \item \texttt{worst texture}
+    \item \texttt{worst radius}
+    \item \texttt{worst concave points}
+    \item \texttt{worst area}
+    \item \texttt{worst perimeter}
+    \item \texttt{radius error}
+    \item \texttt{mean texture}
+    \item \texttt{mean concave points}
+    \item \texttt{area error}
+    \item \texttt{worst symmetry}
+\end{itemize}
+
+Overall, this pattern is consistent with the exploratory analysis: malignant tumours tend to present larger, more irregular, and more heterogeneous nuclei. The predominance of worst-case features also supports the clinical relevance of extreme nuclear measurements when distinguishing malignant from benign samples.
+
+\subsubsection{Conclusion}
+
+Logistic Regression achieved a test accuracy of 98.25\% after hyperparameter tuning.
+
+The optimal model used $C = 0.1$, balancing simplicity and predictive performance.
+
+The results indicate that tumour size and shape irregularity features are the strongest predictors of malignancy, particularly the worst-case measurements.
 
 \subsection{Support Vector Machines}
 \label{sec:svm}
+
+SVMs find the maximum-margin hyperplane separating the two classes; the
+\emph{kernel trick} allows non-linear boundaries without explicitly computing
+the feature map \citep{hastie2009elements}. Two key hyperparameters govern the
+RBF kernel: regularisation strength $C$ and bandwidth $\gamma$
+\citep{james2021statistical}. All tuning is performed on the training set; the
+test set is withheld until the final evaluation (Section~\ref{sec:svm_final}).
+
+\subsubsection{Kernel Comparison}
+
+Linear, RBF, and Polynomial ($C = 1$, degree $= 3$) kernels were trained at
+default settings to obtain a baseline ranking (Table~\ref{tab:svm_kernels},
+Figure~\ref{fig:svm_kernels}). The Polynomial kernel underperformed markedly
+(91.2\% accuracy), suggesting the decision boundary is not well modelled by a
+cubic surface. Both RBF and Linear achieved 97--98\%; RBF was selected for
+tuning due to its greater flexibility.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Kernel} & \textbf{Accuracy} & \textbf{AUC} & \textbf{Time (s)} \\
+\midrule
+Linear       & 0.9737 & 0.9964 & 0.006 \\
+RBF          & 0.9825 & 0.9950 & 0.007 \\
+Polynomial   & 0.9123 & 0.9954 & 0.005 \\
+RBF (tuned)  & \textbf{0.9825} & \textbf{0.9957} & 0.004 \\
+\bottomrule
+\end{tabular}
+\caption{Kernel comparison at default $C = 1$ and tuned RBF final model.}
+\label{tab:svm_kernels}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{task5_01_kernel_comparison.png}
+    \caption{Accuracy and AUC for the three kernels at default $C = 1$.}
+    \label{fig:svm_kernels}
+\end{figure}
+
+\subsubsection{RBF Hyperparameter Search}
+
+\texttt{GridSearchCV} with 5-fold CV was run on the training set over
+$C \in \{0.01,\,0.1,\,1,\,10,\,100\}$ and
+$\gamma \in \{0.001,\,0.01,\,0.1,\,1,\,10\}$ (25 combinations, 125 fits).
+The optimal pair is $C = 10$, $\gamma = 0.001$ (mean CV accuracy 98.25\%).
+Accuracy collapses for $\gamma \geq 1$ due to over-localised support vectors
+\citep{hastie2009elements} (Figures~\ref{fig:svm_grid}--\ref{fig:svm_c_gamma}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{task5_02_rbf_grid_search.png}
+    \caption{Mean 5-fold CV accuracy (left) and mean fit time per fold (right)
+    for all 25 $(C,\,\gamma)$ combinations. Cyan border: best cell
+    ($C = 10$, $\gamma = 0.001$).}
+    \label{fig:svm_grid}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{task5_03_rbf_C_gamma_effect.png}
+    \caption{CV accuracy vs $C$ (left, $\gamma = 0.001$) and vs $\gamma$
+    (right, $C = 10$). The optimal region is $\gamma \leq 0.01$.}
+    \label{fig:svm_c_gamma}
+\end{figure}
+
+\subsubsection{Final SVM Model}
+\label{sec:svm_final}
+
+The final RBF SVM ($C = 10$, $\gamma = 0.001$) is trained on the full training
+set and evaluated on the test set for the first and only time. It correctly
+classified 112 of 114 samples (one false negative, one false positive), giving a
+more balanced error profile than KNN (Table~\ref{tab:svm_report},
+Figure~\ref{fig:svm_cm}).
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support} \\
+\midrule
+Malignant    & 0.9762 & 0.9762 & 0.9762 & 42 \\
+Benign       & 0.9861 & 0.9861 & 0.9861 & 72 \\
+\midrule
+Weighted avg & 0.9825 & 0.9825 & 0.9825 & 114 \\
+\bottomrule
+\end{tabular}
+\caption{Classification report — RBF SVM ($C=10$, $\gamma=0.001$,
+hyperparameters from 5-fold CV). AUC = 0.9957.}
+\label{tab:svm_report}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{task5_04_svm_confusion_matrix.png}
+    \caption{Confusion matrix for the final RBF SVM ($C = 10$, $\gamma = 0.001$).}
+    \label{fig:svm_cm}
+\end{figure}
 
 
 
 \subsection{Neural Network}
 \label{sec:nn}
 
+A Multi-Layer Perceptron (MLP) is a feedforward neural network that learns non-linear decision boundaries through a series of fully connected layers, each applying a weighted linear transformation followed by a non-linear activation function \citep{bishop2006pattern}. Unlike the previous methods, MLPs do not assume a fixed functional form for the decision boundary, making them capable of capturing complex feature interactions at the cost of reduced interpretability and increased sensitivity to hyperparameter choices \citep{hastie2009elements}.
+
+\subsubsection{Architecture Selection}
+
+Two hidden-layer configurations were evaluated on the preprocessed dataset (455 training samples, 30 standardised features):
+
+\begin{itemize}
+    \item \textbf{Architecture 1: (64,)} --- one hidden layer with 64 neurons, selected as a shallow baseline larger than the 30 input features but modest enough to avoid overfitting on this dataset size.
+    \item \textbf{Architecture 2: (64, 32)} --- two hidden layers in a funnel structure. The first layer learns broad feature combinations from the 30 inputs; the second compresses these into higher-level representations before the output, reflecting the clinical intuition that malignancy is determined by combinations of measurements rather than any single feature.
+\end{itemize}
+
+ReLU activation was used in all hidden layers to avoid the vanishing gradient problem associated with sigmoid activations \citep{hastie2009elements}. The Adam optimiser was selected with its default learning rate ($\eta = 0.001$). Two regularisation strategies were applied: L2 weight decay via the sklearn default (alpha $= 0.0001$), and early stopping with a validation fraction of 10\% and patience of 20 epochs (\texttt{n\_iter\_no\_change} $= 20$), which halts training automatically when validation performance stops improving.
+
+\subsubsection{Architecture Comparison and Loss Curves}
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Architecture} & \textbf{Test Accuracy} & \textbf{Training Time} \\
+\midrule
+(64,) --- 1 hidden layer     & 96.49\% & $\sim$0.20s \\
+(64, 32) --- 2 hidden layers & 97.37\% & $\sim$0.28s \\
+\bottomrule
+\end{tabular}
+\caption{Architecture comparison for the two MLP configurations evaluated.}
+\label{tab:mlp_arch}
+\end{table}
+
+Architecture (64, 32) outperformed the single hidden layer by approximately one percentage point. Figure~\ref{fig:mlp_loss} shows the training loss and validation score per epoch for both architectures. Both converged smoothly within 42--52 epochs, with training loss decreasing steadily and validation score plateauing near 1.0, indicating healthy generalisation with no overfitting.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{uploads/MLP_loss_curves.png}
+    \caption{Training loss and validation score per epoch for both MLP architectures. Both converge smoothly with no overfitting.}
+    \label{fig:mlp_loss}
+\end{figure}
+
+\subsubsection{L2 Regularisation Verification}
+
+A sweep over alpha $\in \{0.0001, 0.01, 1.0, 10.0\}$ was applied to the best architecture to confirm the default sklearn value is appropriate. Results were consistent with the bias-variance tradeoff: alpha $= 0.0001$ and $0.01$ both achieved high balanced accuracy ($\sim$0.97--0.98) with minimal train-test gap, while alpha $= 1.0$ began to over-constrain the model and alpha $= 10.0$ caused underfitting (test accuracy $\sim$0.85). The default alpha $= 0.0001$ was confirmed as optimal.
+
+\subsubsection{Final Model Evaluation}
+
+The final model (64, 32) achieved 97.37\% test accuracy. Table~\ref{tab:mlp_report} summarises the classification report and Figure~\ref{fig:mlp_cm} shows the confusion matrix.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support} \\
+\midrule
+Malignant    & 0.98 & 0.95 & 0.96 & 42 \\
+Benign       & 0.97 & 0.99 & 0.98 & 72 \\
+\midrule
+Macro avg    & 0.97 & 0.97 & 0.97 & 114 \\
+Weighted avg & 0.97 & 0.97 & 0.97 & 114 \\
+\bottomrule
+\end{tabular}
+\caption{Classification report for the final MLP model (64, 32). Macro F1 = 0.97, AUC = 0.996.}
+\label{tab:mlp_report}
+\end{table}
+
+Malignant recall of 0.95 indicates that 2 of 42 malignant cases were misclassified as benign (false negatives). In a clinical screening context, false negatives represent missed diagnoses and are more costly than false positives.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{uploads/MLP_confusion_matrix.png}
+    \caption{Confusion matrix for the final MLP model (64, 32). Two malignant cases misclassified as benign; one benign case misclassified as malignant.}
+    \label{fig:mlp_cm}
+\end{figure}
+
+\subsubsection{Neural Networks Conclusion}
+
+The MLP (64, 32) achieved 97.37\% accuracy and AUC = 0.996 after architecture comparison and regularisation verification. The model generalised well without overfitting, benefiting from early stopping and L2 regularisation. Its main limitation relative to simpler models is reduced interpretability --- the learned weights do not offer the same clinical transparency as Logistic Regression coefficients \citep{bishop2006pattern}.
 
 
-% ─────────────────────────────────────────────────────────────────────────────
+
+
+
+
+─────────────────────────────────────────────────────────────────────────────
 \section{Results}
 \label{sec:results}
 
@@ -491,6 +784,12 @@ Nadkarni, P. (2016).
 \newblock In \textit{Clinical Research Computing} (pp. 187--204).
 \newblock Elsevier.
 \newblock \url{https://doi.org/10.1016/B978-0-12-803130-8.00010-5}
+
+\bibitem[Cheng and Yu(2025)]{cheng2025lr}
+Cheng, W., \& Yu, Z. (2025).
+\newblock A fast and interpretable logistic regression framework for breast tumor classification using the Wisconsin Diagnostic Dataset.
+\newblock \textit{medRxiv}.
+\newblock \url{https://doi.org/10.64898/2025.12.23.25342946}
 
 \end{thebibliography}
 

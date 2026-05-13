@@ -20,7 +20,7 @@ from collections import Counter
 warnings.filterwarnings('ignore')
 
 from sklearn.datasets import load_breast_cancer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
@@ -721,37 +721,50 @@ plt.tight_layout()
 plt.savefig(os.path.join(IMG_DIR, 'task5_01_kernel_comparison.png'), dpi=300, bbox_inches='tight')
 plt.close()
 
-# ── 5.2 RBF Kernel: C × Gamma Grid Search ────────────────────────────────────
+# ── 5.2 RBF Kernel: C × Gamma Grid Search (5-fold CV on training set) ────────
 C_values_rbf = [0.01, 0.1, 1, 10, 100]
-gamma_values = [0.001, 0.01, 0.1, 1, 10]
+gamma_values  = [0.001, 0.01, 0.1, 1, 10]
 
-acc_grid  = np.zeros((len(gamma_values), len(C_values_rbf)))
-time_grid = np.zeros((len(gamma_values), len(C_values_rbf)))
+param_grid = {'C': C_values_rbf, 'gamma': gamma_values}
+grid_cv = GridSearchCV(
+    SVC(kernel='rbf', random_state=42),
+    param_grid,
+    cv=5,
+    scoring='accuracy',
+    n_jobs=-1,
+    return_train_score=False,
+)
 
-print("\nRBF grid search  (C × gamma):")
-print(f"{'C / gamma':<12}", end='')
-print('  '.join([f'{g:>7}' for g in gamma_values]))
-print("─" * 65)
+t0 = time.perf_counter()
+grid_cv.fit(X_train_scaled, y_train)
+search_time = time.perf_counter() - t0
 
-for ci, C in enumerate(C_values_rbf):
-    row_str = f"C = {C:<8}"
-    for gi, g in enumerate(gamma_values):
-        svm_rbf = SVC(kernel='rbf', C=C, gamma=g, random_state=42)
-        t0 = time.perf_counter()
-        svm_rbf.fit(X_train_scaled, y_train)
-        time_grid[gi, ci] = time.perf_counter() - t0
-        acc_grid[gi, ci]  = accuracy_score(y_test, svm_rbf.predict(X_test_scaled))
-        row_str += f"  {acc_grid[gi, ci]:>7.4f}"
-    print(row_str)
+# Reshape results: GridSearchCV iterates C outer, gamma inner
+# → acc_grid[gi, ci] = CV accuracy for gamma_values[gi], C_values_rbf[ci]
+scores_1d = grid_cv.cv_results_['mean_test_score']
+times_1d  = grid_cv.cv_results_['mean_fit_time']
+acc_grid  = scores_1d.reshape(len(C_values_rbf), len(gamma_values)).T
+time_grid = times_1d.reshape(len(C_values_rbf), len(gamma_values)).T
 
 best_idx   = np.unravel_index(np.argmax(acc_grid), acc_grid.shape)
 best_gamma = gamma_values[best_idx[0]]
 best_C_rbf = C_values_rbf[best_idx[1]]
 best_acc   = acc_grid[best_idx]
 
-print(f"\nBest RBF accuracy : {best_acc:.4f}")
-print(f"Best C            : {best_C_rbf}")
-print(f"Best gamma        : {best_gamma}")
+print(f"\n5-fold CV grid search completed in {search_time:.4f} s  (training set only)")
+print(f"\nCV accuracy grid  (rows = gamma, cols = C):")
+print(f"{'C / gamma':<12}", end='')
+print('  '.join([f'{g:>7}' for g in gamma_values]))
+print("─" * 65)
+for ci, C in enumerate(C_values_rbf):
+    row_str = f"C = {C:<8}"
+    for gi in range(len(gamma_values)):
+        row_str += f"  {acc_grid[gi, ci]:>7.4f}"
+    print(row_str)
+
+print(f"\nBest RBF CV accuracy : {best_acc:.4f}")
+print(f"Best C               : {best_C_rbf}")
+print(f"Best gamma           : {best_gamma}")
 
 # Figure 15: grid search heatmaps
 fig, axes = plt.subplots(1, 2, figsize=(18, 6))
@@ -763,7 +776,7 @@ sns.heatmap(
     xticklabels=[str(c) for c in C_values_rbf],
     yticklabels=[str(g) for g in gamma_values],
     linewidths=0.5, linecolor='white',
-    cbar_kws={'label': 'Test Accuracy', 'shrink': 0.85},
+    cbar_kws={'label': 'CV Accuracy', 'shrink': 0.85},
     annot_kws={'size': 9, 'weight': 'bold'},
 )
 ax_acc.add_patch(plt.Rectangle(
@@ -772,7 +785,7 @@ ax_acc.add_patch(plt.Rectangle(
 ))
 ax_acc.set_xlabel('C (regularisation)', fontsize=11)
 ax_acc.set_ylabel('Gamma (kernel bandwidth)', fontsize=11)
-ax_acc.set_title('RBF SVM: Test Accuracy Grid\n(cyan border = best combination)',
+ax_acc.set_title('RBF SVM: CV Accuracy Grid (5-fold)\n(cyan border = best combination)',
                  fontsize=12, fontweight='bold')
 
 ax_time = axes[1]
@@ -782,14 +795,14 @@ sns.heatmap(
     xticklabels=[str(c) for c in C_values_rbf],
     yticklabels=[str(g) for g in gamma_values],
     linewidths=0.5, linecolor='white',
-    cbar_kws={'label': 'Training time (s)', 'shrink': 0.85},
+    cbar_kws={'label': 'Mean CV Fit Time per Fold (s)', 'shrink': 0.85},
     annot_kws={'size': 9},
 )
 ax_time.set_xlabel('C (regularisation)', fontsize=11)
 ax_time.set_ylabel('Gamma (kernel bandwidth)', fontsize=11)
-ax_time.set_title('RBF SVM: Training Time Grid (seconds)', fontsize=12, fontweight='bold')
+ax_time.set_title('RBF SVM: Mean CV Fit Time per Fold (s)', fontsize=12, fontweight='bold')
 
-fig.suptitle('RBF Kernel Hyperparameter Search: C × Gamma',
+fig.suptitle('RBF Kernel Hyperparameter Search: C × Gamma  (5-fold CV on training set)',
              fontsize=14, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig(os.path.join(IMG_DIR, 'task5_02_rbf_grid_search.png'), dpi=300, bbox_inches='tight')
@@ -806,8 +819,8 @@ ax_c.plot([str(c) for c in C_values_rbf], acc_vs_C,
           markerfacecolor=CLR_MAL, markeredgecolor='white',
           markeredgewidth=1.2, markersize=9)
 ax_c.set_xlabel(f'C  (gamma fixed at {best_gamma})', fontsize=11)
-ax_c.set_ylabel('Test Accuracy', fontsize=11)
-ax_c.set_title('RBF SVM: Accuracy vs C', fontsize=12, fontweight='bold')
+ax_c.set_ylabel('CV Accuracy', fontsize=11)
+ax_c.set_title('RBF SVM: CV Accuracy vs C', fontsize=12, fontweight='bold')
 ax_c.set_facecolor('#fafafa')
 ax_c.set_ylim(min(acc_vs_C) - 0.02, max(acc_vs_C) + 0.015)
 ax_c.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
@@ -818,13 +831,13 @@ ax_g.plot([str(g) for g in gamma_values], acc_vs_gamma,
           markerfacecolor=PALETTE[1], markeredgecolor='white',
           markeredgewidth=1.2, markersize=9)
 ax_g.set_xlabel(f'Gamma  (C fixed at {best_C_rbf})', fontsize=11)
-ax_g.set_ylabel('Test Accuracy', fontsize=11)
-ax_g.set_title('RBF SVM: Accuracy vs Gamma', fontsize=12, fontweight='bold')
+ax_g.set_ylabel('CV Accuracy', fontsize=11)
+ax_g.set_title('RBF SVM: CV Accuracy vs Gamma', fontsize=12, fontweight='bold')
 ax_g.set_facecolor('#fafafa')
 ax_g.set_ylim(min(acc_vs_gamma) - 0.05, max(acc_vs_gamma) + 0.015)
 ax_g.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))
 
-fig.suptitle('RBF Kernel: Effect of C and Gamma on Test Accuracy',
+fig.suptitle('RBF Kernel: Effect of C and Gamma on CV Accuracy  (5-fold CV)',
              fontsize=14, fontweight='bold', y=1.02)
 plt.tight_layout()
 plt.savefig(os.path.join(IMG_DIR, 'task5_03_rbf_C_gamma_effect.png'), dpi=300, bbox_inches='tight')
